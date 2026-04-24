@@ -37,6 +37,8 @@ export default function TrackerView({ onNavigate, onOpenChat }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const menuRef = useRef(null);
+  const menuBtnRectRef = useRef(null);
   const [showAnalyzeModal, setShowAnalyzeModal] = useState(false);
   const [refreshingFitId, setRefreshingFitId] = useState(null);
   const [lookingUpFundingId, setLookingUpFundingId] = useState(null);
@@ -210,6 +212,17 @@ export default function TrackerView({ onNavigate, onOpenChat }) {
     // Defer so the opening click doesn't immediately close it
     const timer = setTimeout(() => document.addEventListener('click', handler), 0);
     return () => { clearTimeout(timer); document.removeEventListener('click', handler); };
+  }, [openMenuId]);
+
+  // Reposition overflow menu if it overflows the bottom of the viewport
+  useEffect(() => {
+    if (!openMenuId || !menuRef.current) return;
+    const menuEl = menuRef.current;
+    const menuRect = menuEl.getBoundingClientRect();
+    const btnRect = menuBtnRectRef.current;
+    if (menuRect.bottom > window.innerHeight && btnRect) {
+      setMenuPos((prev) => ({ ...prev, top: btnRect.top - menuRect.height - 4 }));
+    }
   }, [openMenuId]);
 
   // Get effective width for a column (from state or default)
@@ -692,6 +705,7 @@ export default function TrackerView({ onNavigate, onOpenChat }) {
                       e.stopPropagation();
                       if (openMenuId === job.id) { setOpenMenuId(null); return; }
                       const rect = e.currentTarget.getBoundingClientRect();
+                      menuBtnRectRef.current = rect;
                       setMenuPos({ top: rect.bottom + 4, left: rect.right - 160 });
                       setOpenMenuId(job.id);
                     }}>
@@ -779,7 +793,7 @@ export default function TrackerView({ onNavigate, onOpenChat }) {
       )}
 
       {openMenuId && createPortal(
-        <div className="overflow-menu animate-in" style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 200 }}>
+        <div ref={menuRef} className="overflow-menu animate-in" style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 200 }}>
           {(() => {
             const job = jobs.find((j) => j.id === openMenuId);
             if (!job) return null;
