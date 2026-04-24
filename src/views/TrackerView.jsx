@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUpDown, Trash2, Download, FileSpreadsheet, ChevronDown, ChevronRight, Search, ExternalLink, MessageCircle, MoreVertical, Link2, Plus, RefreshCw, Check, AlertCircle, Settings2, X, Eye, EyeOff, ChevronsDownUp, ChevronsUpDown, Filter } from 'lucide-react';
 import { getJobs, updateJob, deleteJob, getProfile, getColumnConfig, saveColumnConfig, saveJob, getStories } from '../lib/storage';
@@ -214,14 +214,29 @@ export default function TrackerView({ onNavigate, onOpenChat }) {
     return () => { clearTimeout(timer); document.removeEventListener('click', handler); };
   }, [openMenuId]);
 
-  // Reposition overflow menu if it overflows the bottom of the viewport
-  useEffect(() => {
+  // Reposition overflow menu if it overflows the viewport
+  useLayoutEffect(() => {
     if (!openMenuId || !menuRef.current) return;
     const menuEl = menuRef.current;
     const menuRect = menuEl.getBoundingClientRect();
     const btnRect = menuBtnRectRef.current;
-    if (menuRect.bottom > window.innerHeight && btnRect) {
-      setMenuPos((prev) => ({ ...prev, top: btnRect.top - menuRect.height - 4 }));
+    if (!btnRect) return;
+    let top = menuPos.top;
+    let left = menuPos.left;
+    if (menuRect.bottom > window.innerHeight) {
+      top = btnRect.top - menuRect.height - 4;
+    }
+    if (top < 0) {
+      top = 4;
+    }
+    if (menuRect.right > window.innerWidth) {
+      left = window.innerWidth - menuRect.width - 8;
+    }
+    if (left < 0) {
+      left = 4;
+    }
+    if (top !== menuPos.top || left !== menuPos.left) {
+      setMenuPos({ top, left });
     }
   }, [openMenuId]);
 
