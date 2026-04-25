@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUpDown, Trash2, Download, FileSpreadsheet, ChevronDown, ChevronRight, Search, ExternalLink, MessageCircle, MoreVertical, Link2, Plus, RefreshCw, Check, AlertCircle, Settings2, X, Eye, EyeOff, ChevronsDownUp, ChevronsUpDown, Filter } from 'lucide-react';
 import { getJobs, updateJob, deleteJob, getProfile, getColumnConfig, saveColumnConfig, saveJob, getStories } from '../lib/storage';
@@ -37,6 +37,8 @@ export default function TrackerView({ onNavigate, onOpenChat }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const menuRef = useRef(null);
+  const menuBtnRectRef = useRef(null);
   const [showAnalyzeModal, setShowAnalyzeModal] = useState(false);
   const [refreshingFitId, setRefreshingFitId] = useState(null);
   const [lookingUpFundingId, setLookingUpFundingId] = useState(null);
@@ -210,6 +212,32 @@ export default function TrackerView({ onNavigate, onOpenChat }) {
     // Defer so the opening click doesn't immediately close it
     const timer = setTimeout(() => document.addEventListener('click', handler), 0);
     return () => { clearTimeout(timer); document.removeEventListener('click', handler); };
+  }, [openMenuId]);
+
+  // Reposition overflow menu if it overflows the viewport
+  useLayoutEffect(() => {
+    if (!openMenuId || !menuRef.current) return;
+    const menuEl = menuRef.current;
+    const menuRect = menuEl.getBoundingClientRect();
+    const btnRect = menuBtnRectRef.current;
+    if (!btnRect) return;
+    let top = menuPos.top;
+    let left = menuPos.left;
+    if (menuRect.bottom > window.innerHeight) {
+      top = btnRect.top - menuRect.height - 4;
+    }
+    if (top < 0) {
+      top = 4;
+    }
+    if (menuRect.right > window.innerWidth) {
+      left = window.innerWidth - menuRect.width - 8;
+    }
+    if (left < 0) {
+      left = 4;
+    }
+    if (top !== menuPos.top || left !== menuPos.left) {
+      setMenuPos({ top, left });
+    }
   }, [openMenuId]);
 
   // Get effective width for a column (from state or default)
@@ -692,6 +720,7 @@ export default function TrackerView({ onNavigate, onOpenChat }) {
                       e.stopPropagation();
                       if (openMenuId === job.id) { setOpenMenuId(null); return; }
                       const rect = e.currentTarget.getBoundingClientRect();
+                      menuBtnRectRef.current = rect;
                       setMenuPos({ top: rect.bottom + 4, left: rect.right - 160 });
                       setOpenMenuId(job.id);
                     }}>
@@ -779,7 +808,7 @@ export default function TrackerView({ onNavigate, onOpenChat }) {
       )}
 
       {openMenuId && createPortal(
-        <div className="overflow-menu animate-in" style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 200 }}>
+        <div ref={menuRef} className="overflow-menu animate-in" style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 200 }}>
           {(() => {
             const job = jobs.find((j) => j.id === openMenuId);
             if (!job) return null;
